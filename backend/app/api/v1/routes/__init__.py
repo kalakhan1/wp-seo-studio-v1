@@ -1,0 +1,43 @@
+"""Route modules for API v1."""
+
+from app.api.v1.routes import (
+    ai_prompts,
+    app_settings,
+    backup,
+    connection,
+    content,
+    health,
+    history,
+    image_presets,
+    internal_links,
+    media,
+    products,
+    queue,
+    rankmath_settings,
+    seo_audit,
+    taxonomies,
+    wc_gateways,
+    wc_settings,
+    wc_shipping,
+)
+
+__all__ = [
+    "ai_prompts",
+    "app_settings",
+    "backup",
+    "connection",
+    "content",
+    "health",
+    "history",
+    "image_presets",
+    "internal_links",
+    "media",
+    "products",
+    "queue",
+    "rankmath_settings",
+    "seo_audit",
+    "taxonomies",
+    "wc_gateways",
+    "wc_settings",
+    "wc_shipping",
+]

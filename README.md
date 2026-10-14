@@ -1844,3 +1844,619 @@ For issues:
 ---
 
 **Made with care. Every field has an example. Every action is truthful. Every change is reversible where feasible.**
+
+---
+
+## 20. Frontend File Hierarchy — For Future Updates
+
+This section is for **future updates and error fixing**. It shows exactly
+which files are used when a user opens any page, and where reusable code
+lives so you do not accidentally edit the wrong file.
+
+Read this once. Then, when you need to change something, jump straight to
+the correct file.
+
+### 20.1 — The Entry Chain (Every Page Follows This)
+
+Every single page in the app goes through the **same chain of files**
+before showing the actual content. If you understand this chain, you
+understand the whole frontend.
+
+```
+Browser hits http://127.0.0.1:5173/dashboard
+        ↓
+index.html                          ← the only HTML file
+        ↓ loads
+src/main.tsx                        ← React starts here
+        ↓ renders
+src/App.tsx                         ← wraps everything in ErrorBoundary
+        ↓ uses
+src/router/index.tsx                ← decides which page to show
+        ↓ parent route is always
+src/layout/Layout.tsx               ← sidebar + topnav + <Outlet>
+        ↓ <Outlet> renders
+The specific page (e.g. DashboardPage.tsx)
+```
+
+**In easy words:**
+
+1. **`index.html`** — Empty shell with `<div id="root">`. This is the only HTML file.
+2. **`main.tsx`** — Mounts React into `#root`, sets up `<Toaster>` for notifications.
+3. **`App.tsx`** — Wraps the app in `<ErrorBoundary>` and provides the router.
+4. **`router/index.tsx`** — Maps URL → page component. This is the file you edit when adding a new page.
+5. **`Layout.tsx`** — Shows the left sidebar + top navigation on every page. Contains `<Outlet>` where the page content appears.
+6. **The page file** — Actual content (Dashboard, Connection, etc.)
+
+### 20.2 — Shared/Reusable Files (Check These First)
+
+Before writing new code, check if one of these already does what you need.
+
+#### Layout & Navigation
+
+| File | Purpose | When to edit |
+|---|---|---|
+| `src/layout/Layout.tsx` | Shell wrapper for all pages | To change global layout (e.g. sidebar width) |
+| `src/layout/Sidebar.tsx` | Left navigation menu | To add/remove/rename a menu item, or hide "soon" badges |
+| `src/layout/TopNav.tsx` | Top bar with mode + health | To add a new status indicator |
+
+#### Feedback Components
+
+| File | Purpose | When to edit |
+|---|---|---|
+| `src/components/feedback/Loading.tsx` | Spinner + page loader | To change loading style |
+| `src/components/feedback/EmptyState.tsx` | "No data yet" blocks | To change empty state visuals |
+| `src/components/feedback/ErrorBoundary.tsx` | Catches React render errors | To change error page |
+
+#### Form Inputs
+
+| File | Purpose | When to edit |
+|---|---|---|
+| `src/components/inputs/TextField.tsx` | Single-line text input | To change label/help/error style |
+| `src/components/inputs/TextArea.tsx` | Multi-line text input | Same as above |
+| `src/components/inputs/SelectField.tsx` | Dropdown | Same as above |
+| `src/components/dialogs/ConfirmDialog.tsx` | Confirm/cancel modal | To change modal layout |
+
+#### Cross-Feature Reusables
+
+| File | Purpose | Used by |
+|---|---|---|
+| `src/features/_shared/ContentForm.tsx` | Full blog/page form | Blog Publisher + Page Publisher |
+| `src/features/_shared/RankMathFields.tsx` | SEO title, meta description, focus keyword fields | Content form + Product form |
+| `src/features/_shared/MediaPicker.tsx` | Choose image from Media Studio library | Content form + Product form |
+| `src/features/_shared/ComingSoon.tsx` | Placeholder page | No longer used — all pages are live |
+
+#### Services (API Clients)
+
+| File | Purpose |
+|---|---|
+| `src/services/apiClient.ts` | Base fetch wrapper (used by all other services) |
+| `src/services/connectionApi.ts` | WordPress connection endpoints |
+| `src/services/mediaApi.ts` | Media upload + list + delete |
+| `src/services/contentApi.ts` | Posts/pages + taxonomies |
+| `src/services/productApi.ts` | Products + product categories/tags |
+| `src/services/wcSettingsApi.ts` | WooCommerce settings |
+| `src/services/wcGatewayApi.ts` | Payment gateways + COD |
+| `src/services/wcShippingApi.ts` | Shipping zones + methods |
+| `src/services/rankmathSettingsApi.ts` | Rank Math global settings |
+| `src/services/internalLinkApi.ts` | Internal link search/suggest |
+| `src/services/aiPromptApi.ts` | AI prompt templates + generate |
+| `src/services/seoAuditApi.ts` | SEO audit run + history |
+| `src/services/queueApi.ts` | Publishing queue |
+| `src/services/historyApi.ts` | History entries |
+| `src/services/backupApi.ts` | Backup export + import |
+
+#### Global State & Types
+
+| File | Purpose |
+|---|---|
+| `src/store/appStore.ts` | Zustand store — holds health + settings snapshot |
+| `src/hooks/useHealth.ts` | Polls backend health every 30s |
+| `src/hooks/useAppSettings.ts` | Loads + updates app settings |
+| `src/types/*.ts` | TypeScript types mirroring backend schemas |
+
+### 20.3 — Every Page — Its Complete File Chain
+
+Each page section shows:
+- **URL** — the route
+- **Route file** — where it's registered
+- **Page file** — the actual page
+- **Uses** — components imported by the page
+- **Services** — API clients used
+
+---
+
+#### Dashboard — `/dashboard`
+
+- **Route registered in:** `router/index.tsx`
+- **Page file:** `features/dashboard/DashboardPage.tsx`
+- **Uses:** `Loading` component
+- **Reads from:** `store/appStore.ts` (health snapshot)
+- **Data comes from:** `hooks/useHealth.ts` (which polls the backend)
+- **To change the phase list:** edit the `PHASES` array inside `DashboardPage.tsx`
+- **To change health polling interval:** edit `POLL_INTERVAL_MS` in `hooks/useHealth.ts`
+
+---
+
+#### App Settings — `/app-settings`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/app-settings/AppSettingsPage.tsx`
+- **Uses:** `LoadingPage`, `SelectField`
+- **Service:** `hooks/useAppSettings.ts`
+- **To change editable fields:** edit `AppSettingsPage.tsx` and the backend `schemas/app_settings.py`
+
+---
+
+#### Website Connection — `/connection`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/connection/ConnectionPage.tsx`
+- **Sub-components:**
+  - `features/connection/ConnectionForm.tsx` — the new-connection form
+  - `features/connection/CapabilityPanel.tsx` — the capability report UI
+- **Uses:** `EmptyState`, `LoadingPage`, `ConfirmDialog`, `TextField`
+- **Service:** `services/connectionApi.ts`
+- **To change the connection form fields:** edit `ConnectionForm.tsx` and `types/connection.ts`
+- **To change capability report:** edit `CapabilityPanel.tsx` and `types/capability.ts`
+
+---
+
+#### Setup Wizard — `/site-setup`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/site-setup/SetupWizardPage.tsx`
+- **Sub-components:**
+  - `features/site-setup/SetupStepCard.tsx` — reusable card for each step
+- **Uses:** `EmptyState`, `LoadingPage`
+- **Services:** `connectionApi`, `wcSettingsApi`, `wcGatewayApi`, `wcShippingApi`
+- **To add a new setup step:** edit the `PHASES`-style card list in `SetupWizardPage.tsx` and use `SetupStepCard`
+
+---
+
+#### WooCommerce Settings — `/wordpress-settings` and `/woocommerce`
+
+- **Route:** `router/index.tsx` (both URLs point to same page)
+- **Page:** `features/wordpress-settings/WCSettingsPage.tsx`
+- **Sub-components:**
+  - `features/wordpress-settings/StoreProfileCard.tsx` — top summary card
+  - `features/wordpress-settings/SettingsGroupEditor.tsx` — group editor with dirty tracking
+  - `features/wordpress-settings/SettingField.tsx` — renders correct input based on setting type
+- **Uses:** `EmptyState`, `LoadingPage`
+- **Service:** `services/wcSettingsApi.ts`
+- **To add a new WC settings group:** edit `KNOWN_GROUPS` in backend `services/wc_settings_service.py` and `GROUP_LABELS` in `WCSettingsPage.tsx`
+
+---
+
+#### Cash on Delivery — `/cod`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/cod/CODPage.tsx`
+- **Sub-components:**
+  - `features/cod/CODStatusCard.tsx` — status + warnings
+  - `features/cod/CODForm.tsx` — editable form
+- **Uses:** `EmptyState`, `LoadingPage`, `TextField`, `TextArea`
+- **Service:** `services/wcGatewayApi.ts`
+- **To add a new COD field:** edit `CODSettings` schema in backend, then `CODForm.tsx` and `types/wcGateway.ts`
+
+---
+
+#### Shipping Zones — `/shipping`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/shipping/ShippingPage.tsx`
+- **Sub-components:**
+  - `features/shipping/ZoneCard.tsx` — one zone row (expandable)
+  - `features/shipping/ZoneForm.tsx` — create-zone modal
+  - `features/shipping/MethodForm.tsx` — add/edit-method modal
+- **Uses:** `EmptyState`, `LoadingPage`, `ConfirmDialog`, `TextField`, `SelectField`
+- **Service:** `services/wcShippingApi.ts`
+- **To add a new shipping method type:** update backend `wc_shipping_service.py` and the `MethodForm.tsx` conditional blocks
+
+---
+
+#### Product Publisher — `/product-publisher`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/product-publisher/ProductPublisherPage.tsx`
+- **Main form:** `features/product-publisher/ProductForm.tsx`
+- **Reusables used:**
+  - `features/_shared/MediaPicker.tsx` — featured image picker
+  - `features/_shared/RankMathFields.tsx` — SEO fields
+- **Uses:** `TextField`, `TextArea`, `SelectField`
+- **Service:** `services/productApi.ts` + `services/mediaApi.ts` (through MediaPicker)
+- **To add a new product field:** edit backend `schemas/product.py`, then add field to `FormState` in `ProductForm.tsx`
+
+---
+
+#### Blog Publisher — `/blog-publisher`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/blog-publisher/BlogPublisherPage.tsx`
+- **Uses shared form:** `features/_shared/ContentForm.tsx` (with `kind="post"`)
+- **Reusables used (inside ContentForm):**
+  - `features/_shared/MediaPicker.tsx`
+  - `features/_shared/RankMathFields.tsx`
+- **Service:** `services/contentApi.ts`
+- **To change post-specific fields:** edit `ContentForm.tsx` (look for `isPost` conditionals)
+
+---
+
+#### Page Publisher — `/page-publisher`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/page-publisher/PagePublisherPage.tsx`
+- **Uses shared form:** `features/_shared/ContentForm.tsx` (with `kind="page"`)
+- **Reusables used (inside ContentForm):**
+  - `features/_shared/MediaPicker.tsx`
+  - `features/_shared/RankMathFields.tsx`
+- **Same as Blog Publisher**, just the `isPost` flag is `false`
+
+---
+
+#### Media Studio — `/media-studio`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/media-studio/MediaStudioPage.tsx`
+- **Sub-components:**
+  - `components/media/MediaUploader.tsx` — upload with progress
+  - `components/media/MediaCard.tsx` — grid card
+  - `components/media/MediaDetailPanel.tsx` — side panel with edit + delete
+- **Uses:** `EmptyState`, `LoadingPage`, `ConfirmDialog`, `TextField`, `TextArea`
+- **Service:** `services/mediaApi.ts`
+- **Note:** `MediaPicker` (used by Content/Product forms) also uses `services/mediaApi.ts`
+
+---
+
+#### Image Presets — `/image-presets`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/image-presets/ImagePresetsPage.tsx`
+- **Sub-components:**
+  - `features/image-presets/AspectRatioSelector.tsx`
+  - `features/image-presets/CSSPresetSelector.tsx`
+  - `features/image-presets/ArchiveGridPreview.tsx`
+  - `features/image-presets/DiscoveredSizesTable.tsx`
+- **Uses:** `EmptyState`, `LoadingPage`, `TextField`, `SelectField`
+- **Services:** `services/imagePresetsApi.ts`, `services/mediaApi.ts` (for sample images)
+- **To add a new CSS preset:** edit `CSS_PRESETS` in backend `services/image_presets_service.py`
+
+---
+
+#### Rank Math SEO — `/rankmath`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/rankmath/RankMathPage.tsx`
+- **Sub-components:**
+  - `features/rankmath/RankMathStatusCard.tsx` — companion plugin status
+  - `features/rankmath/RankMathSettingsForm.tsx` — global settings editor
+  - `features/rankmath/SettingsSection.tsx` — reusable section + toggle + input
+- **Service:** `services/rankmathSettingsApi.ts`
+- **To add a new global Rank Math setting:** update backend `FIELD_MAP` in the companion plugin, `schemas/rankmath_settings.py`, and `RankMathSettingsForm.tsx`
+
+---
+
+#### Internal Linking — `/internal-linking`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/internal-linking/InternalLinkingPage.tsx`
+- **Sub-components:**
+  - `features/internal-linking/LinkSearchPanel.tsx` — search content
+  - `features/internal-linking/LinkList.tsx` — draft link editor
+- **Uses:** `EmptyState`, `LoadingPage`, `TextField`, `SelectField`
+- **Service:** `services/internalLinkApi.ts`
+- **Note:** Nothing is written to WordPress from this page. Links are prepared for the user to copy.
+
+---
+
+#### AI Prompt Studio — `/ai-prompt-studio`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/ai-prompt-studio/AIPromptStudioPage.tsx`
+- **Sub-components:**
+  - `features/ai-prompt-studio/PromptEditor.tsx` — the editor with actions
+- **Service:** `services/aiPromptApi.ts`
+- **To change the default prompt:** edit `PRODUCT_DEFAULT_PROMPT` or `BLOG_DEFAULT_PROMPT` in backend `services/ai_prompt_service.py`
+- **To add a new AI provider:** add a file in `backend/app/integrations/ai/` and register in `factory.py`
+
+---
+
+#### Technical SEO Audit — `/seo-audit`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/seo-audit/SEOAuditPage.tsx`
+- **Sub-components:**
+  - `features/seo-audit/FindingCard.tsx` — one finding with severity
+- **Uses:** `EmptyState`, `LoadingPage`
+- **Service:** `services/seoAuditApi.ts`
+- **To add a new audit check:** add a `_check_xyz` method in backend `services/seo_audit_service.py` and call it from `run()`
+
+---
+
+#### Publishing Queue — `/queue`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/queue/QueuePage.tsx`
+- **Uses:** `EmptyState`, `LoadingPage`
+- **Service:** `services/queueApi.ts`
+- **Note:** Background execution not implemented. Jobs are recorded only.
+
+---
+
+#### History and Logs — `/history`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/history/HistoryPage.tsx`
+- **Uses:** `EmptyState`, `LoadingPage`
+- **Service:** `services/historyApi.ts`
+
+---
+
+#### Backup and Restore — `/backup`
+
+- **Route:** `router/index.tsx`
+- **Page:** `features/backup/BackupPage.tsx`
+- **Service:** `services/backupApi.ts`
+- **Note:** Backend scope is app config only (no secrets, not a WordPress backup)
+
+---
+
+### 20.4 — Common Update Recipes (Quick Reference)
+
+Use these recipes for the most common changes.
+
+#### Recipe 1 — Add a new menu item in the sidebar
+
+1. Open `src/layout/Sidebar.tsx`
+2. Find the right group (e.g. "Publishing")
+3. Add an entry:
+   ```tsx
+   { to: "/my-new-page", label: "My New Page", icon: FileText, implemented: true }
+   ```
+4. Import the icon from `lucide-react` at the top
+5. Create the page component
+6. Register the route in `router/index.tsx`
+
+---
+
+#### Recipe 2 — Change a field label on a form
+
+1. Find the page file (see Section 20.3)
+2. Search for the field's `label=` prop
+3. Change the string
+4. Save — Vite hot-reloads automatically
+
+**Example:** Change "Product name" to "Title":
+- File: `features/product-publisher/ProductForm.tsx`
+- Search: `label="Product name"`
+- Change to: `label="Title"`
+
+---
+
+#### Recipe 3 — Add a new field to a form
+
+1. Update backend schema (e.g. `schemas/product.py`)
+2. Update TypeScript type (e.g. `types/product.ts`)
+3. Add the field to the form's `FormState` interface
+4. Add the field to the `INITIAL` object
+5. Add a `<TextField>` (or appropriate input) in the JSX
+6. Include the field in the submit payload object
+
+---
+
+#### Recipe 4 — Change loading/error message
+
+- Loading text: edit the `label` prop on `<LoadingPage label="..." />`
+- Empty state: edit the `<EmptyState title="..." description="..." />`
+- Toast message: search the page file for `toast.success("...")` or `toast.error("...")`
+
+---
+
+#### Recipe 5 — Add a new API endpoint call
+
+1. Add the method to the service file (e.g. `services/productApi.ts`)
+2. Add the backend route in `backend/app/api/v1/routes/`
+3. Mount it in `backend/app/api/v1/router.py`
+4. Update the TypeScript types if the response shape is new
+5. Call it from the page component
+
+---
+
+#### Recipe 6 — Change the "soon" badges on sidebar
+
+Currently **all pages are live** — no "soon" badges should appear.
+
+If a badge appears:
+1. Open `src/layout/Sidebar.tsx`
+2. Find the entry with `implemented: false`
+3. Change to `implemented: true`
+4. Save
+
+---
+
+#### Recipe 7 — Add a new reusable component
+
+1. Create the file under `src/components/` (if generic) or `src/features/_shared/` (if domain-specific)
+2. Export it as a named function (e.g. `export function MyThing(...)`)
+3. Import it in the pages that need it
+4. Add TypeScript props interface
+
+---
+
+#### Recipe 8 — Fix a TypeScript error
+
+1. Read the error message (it usually tells the file and line)
+2. If it's an import error → check the file exists and path is correct
+3. If it's a type error → open the type file in `src/types/`
+4. If it persists after fixing → `Ctrl + Shift + P` → "TypeScript: Restart TS Server"
+5. If still broken → `Developer: Reload Window`
+
+---
+
+#### Recipe 9 — Fix a runtime error (blank page)
+
+1. Open browser DevTools: `F12`
+2. Go to **Console** tab
+3. Read the error — it shows the file and component name
+4. Fix the file, save
+5. Vite hot-reloads automatically
+
+**Common runtime errors:**
+- `Cannot read property of undefined` → a field is missing on a loaded object
+- `Objects are not valid as React child` → rendering an object instead of string
+- `X is not a function` → wrong import or typo
+
+---
+
+#### Recipe 10 — Debug a broken API call
+
+1. Open browser DevTools: `F12`
+2. Go to **Network** tab
+3. Trigger the action (click a button)
+4. Look for the request with a non-200 status
+5. Click it → check **Response** tab for the error message
+6. The error message comes from the backend — check the backend terminal for details
+
+### 20.5 — Directory Cheat Sheet
+
+```
+frontend/src/
+│
+├── main.tsx                        ← React starts here
+├── App.tsx                         ← ErrorBoundary wrapper
+├── vite-env.d.ts                   ← env types
+│
+├── layout/                         ← Global layout
+│   ├── Layout.tsx                  ← shell (sidebar + topnav + outlet)
+│   ├── Sidebar.tsx                 ← left menu (edit here for menu changes)
+│   └── TopNav.tsx                  ← top bar (mode + health)
+│
+├── router/
+│   └── index.tsx                   ← URL → page mapping (edit to add pages)
+│
+├── store/                          ← Global state
+│   └── appStore.ts                 ← Zustand store
+│
+├── hooks/                          ← Custom React hooks
+│   ├── useHealth.ts                ← polls backend health
+│   └── useAppSettings.ts           ← loads + saves settings
+│
+├── services/                       ← API clients (one per domain)
+│   ├── apiClient.ts                ← base fetch wrapper
+│   └── ... (13 more service files)
+│
+├── types/                          ← TypeScript types (mirror backend)
+│   ├── api.ts
+│   ├── errors.ts
+│   ├── connection.ts
+│   ├── capability.ts
+│   ├── content.ts
+│   ├── product.ts
+│   ├── wcSettings.ts
+│   ├── wcGateway.ts
+│   ├── wcShipping.ts
+│   ├── rankmathSettings.ts
+│   ├── internalLink.ts
+│   ├── imagePresets.ts
+│   ├── aiPrompt.ts
+│   ├── seoAudit.ts
+│   ├── queue.ts
+│   ├── history.ts
+│   └── backup.ts
+│
+├── components/                     ← Reusable UI
+│   ├── feedback/
+│   │   ├── Loading.tsx
+│   │   ├── EmptyState.tsx
+│   │   └── ErrorBoundary.tsx
+│   ├── inputs/
+│   │   ├── TextField.tsx
+│   │   ├── TextArea.tsx
+│   │   └── SelectField.tsx
+│   ├── dialogs/
+│   │   └── ConfirmDialog.tsx
+│   ├── media/                      ← Only used by Media Studio
+│   │   ├── MediaUploader.tsx
+│   │   ├── MediaCard.tsx
+│   │   └── MediaDetailPanel.tsx
+│   └── preview/                    ← (empty for now)
+│
+├── features/                       ← One folder per page
+│   ├── dashboard/
+│   ├── app-settings/
+│   ├── connection/
+│   ├── site-setup/
+│   ├── wordpress-settings/
+│   ├── cod/
+│   ├── shipping/
+│   ├── product-publisher/
+│   ├── blog-publisher/
+│   ├── page-publisher/
+│   ├── media-studio/
+│   ├── image-presets/
+│   ├── rankmath/
+│   ├── internal-linking/
+│   ├── seo-audit/
+│   ├── ai-prompt-studio/
+│   ├── queue/
+│   ├── history/
+│   ├── backup/
+│   └── _shared/                    ← Cross-feature reusables
+│       ├── ContentForm.tsx         ← blog + page form
+│       ├── RankMathFields.tsx      ← SEO fields
+│       ├── MediaPicker.tsx         ← image picker
+│       └── ComingSoon.tsx          ← placeholder (no longer used)
+│
+└── styles/
+    └── index.css                   ← Tailwind + global styles
+```
+
+### 20.6 — Rules to Follow When Editing
+
+1. **Never edit `main.tsx` or `App.tsx`** unless you know what you're doing. They rarely need changes.
+2. **To add a page:** create file in `features/`, register in `router/index.tsx`, add sidebar entry in `layout/Sidebar.tsx`. Three files, that's all.
+3. **To change visual style of inputs everywhere:** edit `components/inputs/*.tsx`. All forms will update automatically.
+4. **To change only one page's inputs:** copy the field JSX into that page and modify there.
+5. **To add a new field to any form:** update backend schema → update TS type → update form's `FormState` → add JSX → include in payload.
+6. **To fix any bug:** first check browser console (F12), then backend terminal, then use Section 20.4 recipes.
+7. **Always restart the TS server** after adding/renaming files: `Ctrl + Shift + P` → `TypeScript: Restart TS Server`.
+8. **Never commit `node_modules/`, `.env`, or `dist/`** — already in `.gitignore`.
+
+### 20.7 — Where Does My Data Actually Come From?
+
+Every page loads its data through this chain:
+
+```
+Page component (e.g. ProductPublisherPage.tsx)
+        ↓ calls
+Service (e.g. services/productApi.ts)
+        ↓ uses
+apiClient.ts (adds headers, handles errors)
+        ↓ fetches
+Backend FastAPI endpoint (e.g. POST /api/v1/products)
+        ↓ calls
+Backend service (e.g. app/services/product_service.py)
+        ↓ uses
+Integration client (e.g. app/integrations/woocommerce/client.py)
+        ↓ HTTP request
+WordPress / WooCommerce REST API
+```
+
+**To debug a data issue:**
+
+1. Browser F12 → Network tab → find the request
+2. Check the request URL and payload
+3. Check the response body for the error
+4. Match that error to the backend service file
+5. Fix backend → restart uvicorn → retry
+
+### 20.8 — Summary
+
+- **Everything starts at `index.html` → `main.tsx` → `App.tsx` → `router/index.tsx`.**
+- **`Layout.tsx` wraps every page. `Sidebar.tsx` controls the menu.**
+- **`components/` = generic UI. `features/_shared/` = domain reusables.**
+- **Each feature folder has a page file + its sub-components.**
+- **Services talk to the backend. Types describe the data.**
+- **When in doubt, search the project for the field name or the error message.**
+
+This section is the map. Use it whenever you come back to this project after
+a break, or when you want to change something and don't know where to look.
